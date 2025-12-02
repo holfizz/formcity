@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  formcity-bot:
+    build: .
+    container_name: formcity-telegram-bot
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./data.xlsx:/app/data.xlsx:ro
+      - ./data.csv:/app/data.csv:ro
+    ports:
+      - "3000:3000"
