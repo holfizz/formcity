@@ -321,9 +321,8 @@ export class CsvService {
 			}
 
 			// Просто возвращаем содержимое CSV файла
-			let result = '📊 ДАННЫЕ ИЗ ФАЙЛА data.csv:\n\n'
+			let result = '📊 ВНУТРЕННИЕ ДАННЫЕ КОМПАНИИ:\n\n'
 			result += csvContent
-			result += '\n\nИсточник: ' + this.csvPath
 
 			return result
 		} catch (error) {
