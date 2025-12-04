@@ -303,40 +303,33 @@ export class CsvService {
 	}
 
 	async getAllDataAsText(): Promise<string> {
-		const data = await this.loadCsvData()
+		try {
+			this.logger.log(`Reading raw CSV from: ${this.csvPath}`)
 
-		if (data.length === 0) {
-			return 'Данные CSV не загружены'
-		}
-
-		let result = 'ФИНАНСОВЫЕ ДАННЫЕ ПРОЕКТА\n\n'
-
-		const categories = [...new Set(data.map(d => d.category))]
-
-		for (const category of categories) {
-			result += `${category}:\n`
-			const categoryData = data.filter(d => d.category === category)
-
-			for (const item of categoryData) {
-				result += `\n${item.metric}\n`
-				result += `Всего: ${this.formatNumber(
-					item.total
-				)}, Продано: ${this.formatNumber(
-					item.sold
-				)}, Остаток: ${this.formatNumber(item.remaining)}\n`
-
-				// Добавляем данные по годам
-				result += `По годам: `
-				const years = Object.keys(item.yearlyData).sort()
-				const yearData = years
-					.map(year => `${year}: ${this.formatNumber(item.yearlyData[year])}`)
-					.join(', ')
-				result += yearData + '\n'
+			if (!fs.existsSync(this.csvPath)) {
+				this.logger.error(`CSV file not found: ${this.csvPath}`)
+				return 'Файл data.csv не найден'
 			}
-			result += '\n'
-		}
 
-		return result
+			const csvContent = fs.readFileSync(this.csvPath, 'utf-8')
+			const lines = csvContent.split('\n').filter(line => line.trim())
+
+			this.logger.log(`CSV loaded: ${lines.length} lines`)
+
+			if (lines.length === 0) {
+				return 'Файл data.csv пустой'
+			}
+
+			// Просто возвращаем содержимое CSV файла
+			let result = '📊 ДАННЫЕ ИЗ ФАЙЛА data.csv:\n\n'
+			result += csvContent
+			result += '\n\nИсточник: ' + this.csvPath
+
+			return result
+		} catch (error) {
+			this.logger.error(`Error reading CSV: ${error.message}`)
+			return `Ошибка чтения CSV: ${error.message}`
+		}
 	}
 
 	refreshCache(): void {

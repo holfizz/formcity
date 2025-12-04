@@ -486,10 +486,48 @@ export class SimpleTelegramBot {
 	}
 
 	private formatPropertiesForAI(properties: PropertyData[]): string {
-		return (
-			`Найдено ${properties.length} объектов недвижимости:\n` +
-			properties.map(prop => JSON.stringify(prop)).join('\n')
+		if (properties.length === 0) {
+			return 'Данные CSV не загружены'
+		}
+
+		const formatted = properties
+			.map((prop, index) => {
+				const details = []
+				if (prop.тип) details.push(`Тип: ${prop.тип}`)
+				if (prop.подтип) details.push(`Подтип: ${prop.подтип}`)
+				if (prop.площадь) details.push(`Площадь: ${prop.площадь} кв.м`)
+				if (prop.цена)
+					details.push(`Цена: ${Number(prop.цена).toLocaleString('ru-RU')} руб`)
+				if (prop.этаж) details.push(`Этаж: ${prop.этаж}`)
+				if (prop.комнаты) details.push(`Комнат: ${prop.комнаты}`)
+				if (prop.очередь) details.push(`Очередь: ${prop.очередь}`)
+				if (prop.статус) details.push(`Статус: ${prop.статус}`)
+
+				return `${index + 1}. ${details.join(', ')}`
+			})
+			.join('\n')
+
+		const totalPrice = properties.reduce(
+			(sum, prop) => sum + Number(prop.цена || 0),
+			0
 		)
+		const avgPrice = totalPrice / properties.length
+		const totalArea = properties.reduce(
+			(sum, prop) => sum + Number(prop.площадь || 0),
+			0
+		)
+		const avgArea = totalArea / properties.length
+
+		return `📊 ДАННЫЕ ИЗ CSV ФАЙЛА (${properties.length} объектов):
+
+${formatted}
+
+📈 СТАТИСТИКА:
+• Средняя цена: ${avgPrice.toLocaleString('ru-RU')} руб
+• Средняя площадь: ${avgArea.toFixed(1)} кв.м
+• Общая стоимость: ${totalPrice.toLocaleString('ru-RU')} руб
+
+Источник данных: /Users/holfizz/Developer/fromcity/data.csv`
 	}
 
 	private async sendLongMessage(ctx: BotContext, message: string) {

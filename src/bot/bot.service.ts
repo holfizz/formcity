@@ -153,13 +153,42 @@ export class BotService {
 				}
 			} else {
 				// Для всех остальных вопросов используем OpenAI с web search
-				prompt = `Сотрудник спрашивает: "${message}". 
-				
-Ответь на вопрос сотрудника. Если нужна актуальная информация из интернета - используй web search.
-Будь конкретным и профессиональным.`
+				const isFinancial = this.isFinancialQuery(message)
 
-				// Не используем web scraping - у нас есть web search в GPT
-				await this.streamResponse(ctx, prompt, '')
+				if (isFinancial) {
+					prompt = `Сотрудник компании Formula City спрашивает о финансах: "${message}". 
+
+🔴 КРИТИЧЕСКИ ВАЖНО:
+1. Это ФИНАНСОВЫЙ вопрос - ОБЯЗАТЕЛЬНО используй web search
+2. Ищи информацию на formcity.ru, в новостях, отчетах, презентациях
+3. Ищи по запросам: "Formula City выручка", "Formula City контрактация", "Formula City продажи"
+4. НЕ говори "у меня нет доступа" - у тебя есть web search!
+5. Если не нашел точные цифры - ищи общую информацию о проектах и рынке
+
+Формат ответа:
+💰 **ФИНАНСОВАЯ ИНФОРМАЦИЯ**
+
+[Данные из найденных источников]
+
+🔍 **Источники:**
+• [Название источника](URL)
+
+Если не нашел - предложи альтернативу или общую информацию.`
+				} else {
+					prompt = `Сотрудник компании Formula City спрашивает: "${message}". 
+
+ВАЖНО:
+1. Используй web search для поиска актуальной информации
+2. Ищи на formcity.ru и других источниках
+3. Предоставь конкретные данные с источниками
+4. Будь профессиональным и конкретным
+
+Формат ответа:
+📊 Краткий ответ с данными
+🔍 Источники: [название](URL)`
+				}
+
+				await this.streamResponse(ctx, prompt, '', true)
 			}
 
 			// Убрали лишнее сообщение - пользователь и так может писать
@@ -627,6 +656,27 @@ info@formcity.ru
 		)
 	}
 
+	private isFinancialQuery(message: string): boolean {
+		const financialKeywords = [
+			'выручка',
+			'контрактация',
+			'продажи',
+			'доход',
+			'прибыль',
+			'финанс',
+			'бюджет',
+			'инвестиц',
+			'расход',
+			'оборот',
+			'рентабельность',
+			'окупаемость',
+		]
+
+		return financialKeywords.some(keyword =>
+			message.toLowerCase().includes(keyword)
+		)
+	}
+
 	private formatPropertiesForUser(properties: PropertyData[]): string {
 		return properties
 			.map((prop, index) => {
@@ -647,10 +697,48 @@ info@formcity.ru
 	}
 
 	private formatPropertiesForAI(properties: PropertyData[]): string {
-		return (
-			`Найдено ${properties.length} объектов недвижимости:\n` +
-			properties.map(prop => JSON.stringify(prop)).join('\n')
+		if (properties.length === 0) {
+			return 'Данные CSV не загружены'
+		}
+
+		const formatted = properties
+			.map((prop, index) => {
+				const details = []
+				if (prop.тип) details.push(`Тип: ${prop.тип}`)
+				if (prop.подтип) details.push(`Подтип: ${prop.подтип}`)
+				if (prop.площадь) details.push(`Площадь: ${prop.площадь} кв.м`)
+				if (prop.цена)
+					details.push(`Цена: ${Number(prop.цена).toLocaleString('ru-RU')} руб`)
+				if (prop.этаж) details.push(`Этаж: ${prop.этаж}`)
+				if (prop.комнаты) details.push(`Комнат: ${prop.комнаты}`)
+				if (prop.очередь) details.push(`Очередь: ${prop.очередь}`)
+				if (prop.статус) details.push(`Статус: ${prop.статус}`)
+
+				return `${index + 1}. ${details.join(', ')}`
+			})
+			.join('\n')
+
+		const totalPrice = properties.reduce(
+			(sum, prop) => sum + Number(prop.цена || 0),
+			0
 		)
+		const avgPrice = totalPrice / properties.length
+		const totalArea = properties.reduce(
+			(sum, prop) => sum + Number(prop.площадь || 0),
+			0
+		)
+		const avgArea = totalArea / properties.length
+
+		return `📊 ДАННЫЕ ИЗ CSV ФАЙЛА (${properties.length} объектов):
+
+${formatted}
+
+📈 СТАТИСТИКА:
+• Средняя цена: ${avgPrice.toLocaleString('ru-RU')} руб
+• Средняя площадь: ${avgArea.toFixed(1)} кв.м
+• Общая стоимость: ${totalPrice.toLocaleString('ru-RU')} руб
+
+Источник данных: /Users/holfizz/Developer/fromcity/data.csv`
 	}
 
 	private async sendMessageWithRetry(
